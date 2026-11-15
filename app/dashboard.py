@@ -46,11 +46,10 @@ ORDER BY total_orders DESC;
     )
 
 # ==============================================================================
-# TODO (TP Jours 3 & 4) — À COMPLÉTER PAR LES ÉTUDIANTS
+# TODO (Projet Jours 3 & 4) — À ADAPTER À VOTRE SUJET KAGGLE
 # ==============================================================================
-# Une fois vos tables Gold générées sur HDFS dans `/lakehouse/gold/` :
-# 1. Chargez vos tables via `load_gold_table("/lakehouse/gold/kpi_categories")`,
-#    `load_gold_table("/lakehouse/gold/kpi_monthly")`, `load_gold_table("/lakehouse/gold/customer_rfm")`, etc.
-# 2. Construisez vos visualisations interactives avec `plotly.express` (`px.bar`, `px.scatter`, `px.line`, `px.pie`).
-# 3. Pour chaque indicateur restitué, ajoutez un bloc `st.expander(...)` présentant
-#    la requête SQL exécutée et sa justification statistique (médiane vs moyenne, IQR, Pareto, RFM).
+# 1. Chargez vos propres tables Gold avec `load_gold_table("/lakehouse/gold/<votre_table>")`.
+# 2. Ajoutez des filtres interactifs (`st.selectbox`, `st.multiselect`, `st.slider`) et des
+#    graphiques Plotly Express (`px.bar`, `px.scatter`, `px.line`, `px.box`, `px.pie`).
+# 3. Documentez sous chaque analyse la requête Spark SQL utilisée ainsi que la justification
+#    statistique de vos indicateurs (médiane vs moyenne, IQR, Pareto, test d'hypothèse, clustering).
