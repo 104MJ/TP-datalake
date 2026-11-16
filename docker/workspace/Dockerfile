@@ -9,11 +9,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
     UV_LINK_MODE=copy \
     HADOOP_USER_NAME=root \
     JAVA_HOME=/usr/lib/jvm/default-java \
+    PATH="/usr/lib/jvm/default-java/bin:${PATH}" \
     PYSPARK_PYTHON=python3 \
     PYSPARK_DRIVER_PYTHON=python3
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     default-jre-headless \
+    libsnappy1v5 \
     git \
     jq \
     procps \
@@ -25,6 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping \
     netcat-openbsd \
     && rm -rf /var/lib/apt/lists/* \
+    && (test -e /usr/lib/jvm/default-java || ln -s "/usr/lib/jvm/java-17-openjdk-$(dpkg --print-architecture)" /usr/lib/jvm/default-java) \
     && git config --system --add safe.directory /workspace
 
 WORKDIR /workspace
@@ -35,6 +38,7 @@ RUN uv pip install --system --no-cache -r /tmp/requirements.txt && \
     python3 -c "from pyspark.sql import SparkSession; \
     SparkSession.builder \
     .master('local[1]') \
+    .config('spark.driver.extraJavaOptions', '-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0') \
     .config('spark.jars.packages', 'io.delta:delta-spark_2.12:3.2.1') \
     .getOrCreate().stop()"
 

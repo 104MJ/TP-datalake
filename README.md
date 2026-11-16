@@ -1,6 +1,6 @@
 # TP Big Data Lakehouse — HDFS (3 DataNodes) + PySpark + Delta Lake + Streamlit
 
-Environnement pédagogique complet reposant sur un **cluster HDFS réel distribué (1 NameNode + 3 DataNodes)** avec blocs réduits à **16 Mo** et détection de panne abaissée à **~50 secondes**, couplé à une image mutualisée légère (`python:3.11-slim-bookworm` + `uv` + JARs Delta pré-embarqués) pour **PySpark 3.5**, **Delta Lake 3.2**, **JupyterLab** et **Streamlit**.
+Environnement pédagogique complet compatible nativement **`linux/amd64` (PC x86_64 / WSL2)** et **`linux/arm64` (Apple Silicon M1–M4 / Linux ARM64)**, reposant sur un **cluster HDFS réel distribué (1 NameNode + 3 DataNodes)** avec blocs réduits à **16 Mo** et détection de panne abaissée à **~50 secondes**, couplé à une image mutualisée légère (`python:3.11-slim-bookworm` + `uv` + JARs Delta pré-embarqués) pour **PySpark 3.5**, **Delta Lake 3.2**, **JupyterLab** et **Streamlit**.
 
 Chaque étudiant / groupe **choisit librement sa thématique métier et son dataset public sur Kaggle** pour construire de bout en bout une architecture **Data Lakehouse Médaillon (Bronze → Silver → Gold → Dashboard)**.
 
@@ -58,8 +58,10 @@ Pour tirer pleinement parti de l'infrastructure distribuée et des exercices sta
 │   ├── hdfs-site.xml           # Blocs 16 Mo, réplication=2, détection panne ~50s
 │   └── spark-defaults.conf     # Pré-configuration automatique HDFS + Delta Lake
 ├── docker/
+│   ├── hadoop/
+│   │   └── Dockerfile          # Image HDFS 3.3.6 native multi-arch (amd64 & arm64/aarch64)
 │   └── workspace/
-│       ├── Dockerfile          # Image légère multi-arch (uv + OpenJDK + cache Ivy Delta)
+│       ├── Dockerfile          # Image légère multi-arch (uv + OpenJDK 17 + cache Ivy Delta)
 │       └── requirements.txt    # Dépendances gelées pour le workspace
 ├── data_raw/                   # Dépôt local de vos fichiers Kaggle avant ingestion HDFS
 ├── notebooks/                  # Notebooks TP pas-à-pas agnostiques (Jours 1 à 4)
