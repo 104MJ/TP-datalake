@@ -1,9 +1,17 @@
+"""Dashboard Streamlit : retards des vols aériens (couche Gold du lakehouse).
+
+Ce fichier ne contient que la structure commune. Chaque onglet est codé dans
+son propre module de `app/sections/` (un fichier par personne, pas de conflit git).
+Le dashboard ne lit que des tables de `/lakehouse/gold/`, jamais Silver ni les CSV.
+"""
+
 import streamlit as st
-import plotly.express as px  # noqa: F401
 from pyspark.sql import SparkSession
 
-st.set_page_config(page_title="Lakehouse Analytics", layout="wide")
-st.title("Explorateur Data Lakehouse (HDFS + Delta Lake)")
+from sections import aeroports, compagnies, temps_risque
+
+st.set_page_config(page_title="Retards des vols 2015", layout="wide")
+st.title("Retards des vols aériens aux États-Unis (2015)")
 
 
 @st.cache_resource
@@ -18,38 +26,30 @@ def get_spark():
 
 
 @st.cache_data(ttl=60)
-def load_gold_table(hdfs_path: str):
-    spark = get_spark()
-    return spark.read.format("delta").load(hdfs_path).toPandas()
+def _read_gold(name: str):
+    return get_spark().read.format("delta").load(f"/lakehouse/gold/{name}").toPandas()
 
 
-st.info(
-    "Cluster HDFS connecté (`hdfs://namenode:9000`). "
-    "Alimentez vos tables Delta dans `/lakehouse/gold/` depuis JupyterLab pour afficher vos analyses ici."
+def load_gold(name: str):
+    """Charge /lakehouse/gold/<name> en pandas, ou None (avec un avertissement) si la table n'existe pas encore."""
+    try:
+        return _read_gold(name)
+    except Exception as exc:  # table pas encore créée par le notebook J3/J4
+        st.warning(f"Table `/lakehouse/gold/{name}` indisponible : exécutez d'abord le notebook qui la crée. ({type(exc).__name__})")
+        return None
+
+
+st.caption(
+    "Problématique : qu'est-ce qui fait qu'un vol arrive en retard, et peut-on repérer à l'avance les vols à risque ? "
+    "Indicateur : taux de vols arrivés avec 15 min de retard ou plus (médiane et IQR en complément)."
 )
 
-with st.expander("Exemple d'intégration d'une requête expliquée (attendu pour le projet)"):
-    st.code(
-        """
-SELECT category,
-       COUNT(*) AS total_orders,
-       PERCENTILE_APPROX(delivery_days, 0.5) AS median_delivery_days
-FROM delta.`/lakehouse/silver/orders`
-GROUP BY category
-ORDER BY total_orders DESC;
-        """,
-        language="sql",
-    )
-    st.markdown(
-        "**Justification statistique :** Utilisation de la médiane plutôt que de la moyenne "
-        "pour neutraliser les retards logistiques extrêmes."
-    )
-
-# ==============================================================================
-# TODO (Projet Jours 3 & 4) — À ADAPTER À VOTRE SUJET KAGGLE
-# ==============================================================================
-# 1. Chargez vos propres tables Gold avec `load_gold_table("/lakehouse/gold/<votre_table>")`.
-# 2. Ajoutez des filtres interactifs (`st.selectbox`, `st.multiselect`, `st.slider`) et des
-#    graphiques Plotly Express (`px.bar`, `px.scatter`, `px.line`, `px.box`, `px.pie`).
-# 3. Documentez sous chaque analyse la requête Spark SQL utilisée ainsi que la justification
-#    statistique de vos indicateurs (médiane vs moyenne, IQR, Pareto, test d'hypothèse, clustering).
+tab_risque, tab_compagnies, tab_aeroports = st.tabs(
+    ["Saisonnalité & risque de retard", "Compagnies", "Aéroports"]
+)
+with tab_risque:
+    temps_risque.render(load_gold)
+with tab_compagnies:
+    compagnies.render(load_gold)
+with tab_aeroports:
+    aeroports.render(load_gold)
