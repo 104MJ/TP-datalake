@@ -11,9 +11,9 @@ CORAL = "#E76F51"
 LINE = "#ECE5DA"
 SEGMENT_COLORS = {
     "Grands hubs congestionnés": CORAL,
+    "Retards en cascade": TEAL,
     "Aéroports régionaux perturbés": "#E0A93B",
-    "Aéroports fiables": TEAL,
-    "Vols courts et ponctuels": INK,
+    "Aéroports exposés à la météo": INK,
 }
 
 

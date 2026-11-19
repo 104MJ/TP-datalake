@@ -6,10 +6,10 @@ import streamlit as st
 from sections.style import SEGMENT_COLORS, styled
 
 DESCRIPTIONS = {
-    "Grands hubs congestionnés": "Le plus de trafic et de vols longs, le taux de retard le plus élevé (environ 21 %).",
-    "Aéroports régionaux perturbés": "Peu de trafic mais le plus d'annulations (2,5 %) : exposés aux perturbations ponctuelles.",
-    "Aéroports fiables": "Trafic moyen à fort, moins de retards (17 %) et peu d'annulations. Atlanta en fait partie.",
-    "Vols courts et ponctuels": "Les aéroports d'Hawaï : vols courts entre les îles, très peu de retards et d'annulations.",
+    "Grands hubs congestionnés": "Le plus de trafic, le roulage le plus long et le taux de retard le plus élevé (environ 20 %). Atlanta en fait partie.",
+    "Retards en cascade": "La moitié des minutes de retard vient d'un avion arrivé en retard : bases de Southwest (Dallas Love, Houston Hobby, Midway) et Hawaï.",
+    "Aéroports régionaux perturbés": "Peu de trafic, la plus forte part de retard due au système aérien, 2 % d'annulations.",
+    "Aéroports exposés à la météo": "Little Rock, Fayetteville, Colorado Springs, Fresno : 17 % des minutes de retard dues à la météo et le plus d'annulations.",
 }
 
 
@@ -17,10 +17,11 @@ def render(load_gold):
     df = load_gold("segments_aeroports")
     if df is None:
         return
-    df = df.assign(taux_retard_pct=100 * df["taux_retard_15"], taux_annulation_pct=100 * df["taux_annulation"])
+    df = df.assign(taux_retard_pct=df["taux_retard"], taux_annulation_pct=df["taux_annulation"])
 
     st.subheader("Quatre profils d'aéroports")
-    st.markdown("Un K-Means sur cinq indicateurs (trafic, P90 du retard, taux de retard, annulations, distance) "
+    st.markdown("Un K-Means sur les neuf indicateurs de l'ACP de J2 (retard, annulations, roulage, trafic, distance, "
+                "départs du soir, part du retard due au système aérien, à la météo et aux avions arrivés en retard) "
                 "regroupe les 104 aéroports avec au moins 300 vols en quatre profils.")
 
     segments = [s for s in SEGMENT_COLORS if s in set(df["segment"])]
@@ -73,17 +74,22 @@ def render(load_gold):
     with st.expander("Méthode et justification statistique"):
         st.code(
             "silver_df.where('airport_code_valid').groupBy('origin_airport').agg(\n"
-            "    count('*').alias('nb_vols'), percentile_approx('arrival_delay', 0.9).alias('retard_p90_min'),\n"
-            "    avg((col('arrival_delay') >= 15).cast('double')).alias('taux_retard_15'),\n"
-            "    avg(col('is_cancelled').cast('double')).alias('taux_annulation'),\n"
-            "    percentile_approx('distance', 0.5).alias('distance_mediane')\n"
-            ").where('nb_vols >= 300')", language="python")
+            "    count('*').alias('nb_vols'),\n"
+            "    (100 * avg(col('is_delayed_15').cast('int'))).alias('taux_retard'),\n"
+            "    (100 * avg(col('is_cancelled').cast('int'))).alias('taux_annulation'),\n"
+            "    percentile_approx('taxi_out', 0.5).alias('roulage_median'),\n"
+            "    percentile_approx('distance', 0.5).alias('distance_mediane'),\n"
+            "    (100 * avg((col('dep_hour') >= 17).cast('int'))).alias('part_depart_soir'),\n"
+            "    (100 * sum('air_system_delay') / total_causes).alias('part_systeme'),\n"
+            "    (100 * sum('weather_delay') / total_causes).alias('part_meteo'),\n"
+            "    (100 * sum('late_aircraft_delay') / total_causes).alias('part_avion_retarde'),\n"
+            ").where('nb_vols >= 300')   # puis log_trafic = log10(nb_vols)", language="python")
         st.markdown(
-            "- `log1p` sur le trafic et la distance (asymétriques), puis `StandardScaler` pour que les variables "
-            "en milliers de vols n'écrasent pas les taux dans la distance euclidienne.\n"
-            "- **k = 4** : l'indice de Davies-Bouldin est au plus bas à k = 4 (1,08) et la silhouette reste stable "
-            "(0,27) ; au-delà, les groupes deviennent trop petits pour être interprétés.\n"
+            "- Trafic en log (très asymétrique), puis `StandardScaler` : les variables n'ont pas les mêmes unités "
+            "(%, minutes, miles) et aucune ne doit écraser les autres dans la distance euclidienne.\n"
+            "- **k = 4** : l'indice de Davies-Bouldin baisse nettement de k = 3 (1,60) à k = 4 (1,47) ; au-delà, "
+            "on n'ajoute que des groupes de 2 à 4 aéroports. La silhouette est faible (0,20) : les profils se recouvrent.\n"
             "- Octobre est exclu (codes aéroport non valides) et seuls les aéroports avec au moins 300 vols sont gardés, "
             "pour que les taux soient fiables.\n"
-            "- Les deux premiers profils retrouvent les deux axes de l'ACP de J2 : congestion des hubs et perturbations "
-            "ponctuelles des petits aéroports.")
+            "- Les profils retrouvent les trois premiers axes de l'ACP de J2 : congestion des hubs, retard propagé "
+            "contre perturbations du système aérien, météo.")

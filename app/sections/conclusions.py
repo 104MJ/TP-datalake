@@ -7,7 +7,7 @@ FACTEURS = [
     ("1", "L'heure de départ", "7 % de vols en retard à 5 h, 27 % vers 20 h : les retards se propagent d'un vol à l'autre au fil de la journée.", "#E76F51"),
     ("2", "La compagnie", "De 12,5 % (Hawaiian) à 30 % (Spirit). Les low-cost Spirit et Frontier sont les moins ponctuelles.", "#F4A261"),
     ("3", "La saison", "Pics en février et juin (environ 24 %), creux en septembre et octobre (environ 13 %).", "#E9C46A"),
-    ("4", "L'aéroport", "Les grands hubs congestionnés (Chicago, Dallas, Denver...) sont les plus à risque ; Atlanta reste fiable.", "#2A9D8F"),
+    ("4", "L'aéroport", "Les grands hubs congestionnés (Chicago, Dallas, Denver...) sont les plus à risque ; les petits aéroports exposent surtout aux annulations.", "#2A9D8F"),
 ]
 
 
@@ -44,9 +44,10 @@ def render(load_gold):
             st.markdown(
                 "Avec des dizaines de milliers de vols, la moindre différence devient « statistiquement significative ». "
                 "La p-value dit seulement si un écart existe ; la **taille d'effet** dit s'il compte. Exemple : la distance "
-                "a un lien significatif avec le retard (p ≈ 10⁻¹⁹), mais elle n'explique que 0,6 % de sa variance. "
-                "Tous les tests sont **non paramétriques** (Mann-Whitney, Kruskal-Wallis, Spearman) car le retard est "
-                "très asymétrique (skewness ≈ 6,5).")
+                "a un lien significatif avec le retard (p ≈ 10⁻²⁵⁷), mais elle n'explique que 0,4 % de sa variance. "
+                "Les tests sur le retard en minutes sont **non paramétriques** (Mann-Whitney, Kruskal-Wallis, Spearman) "
+                "car le retard est très asymétrique (skewness ≈ 6,5). Le χ² compare des catégories (créneau, en retard "
+                "oui/non) : sa taille d'effet est le V de Cramér.")
 
     st.subheader("Limites")
     st.markdown(
