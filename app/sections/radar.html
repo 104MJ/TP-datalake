@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/deck.gl@9.0.38/dist.min.js"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: #F2F5F9; font-family: 'DM Sans', system-ui, sans-serif; overflow: hidden; }
+  #scene { position: absolute; inset: 0; border-radius: 22px; overflow: hidden;
+           background: radial-gradient(ellipse at 60% 130%, #1E4272 0%, #0B2545 62%); }
+  #map { position: absolute; inset: 0; }
+  #scene::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+                  background: linear-gradient(90deg, rgba(11, 37, 69, 0.92) 0%, rgba(11, 37, 69, 0.55) 34%, rgba(11, 37, 69, 0) 58%); }
+  .texte { position: absolute; left: 34px; top: 30px; z-index: 2; max-width: 470px; color: #fff; pointer-events: none; }
+  .kicker { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #F39A6B; }
+  h1 { font-size: 38px; line-height: 1.08; margin: 10px 0 12px; font-weight: 700; letter-spacing: -0.02em; }
+  .sous { color: #B8C7DA; font-size: 15px; line-height: 1.5; }
+  .chiffres { position: absolute; left: 34px; bottom: 28px; z-index: 2; display: flex; gap: 10px; pointer-events: none; }
+  .chiffre { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 14px;
+             padding: 10px 14px; color: #fff; backdrop-filter: blur(6px); }
+  .chiffre b { display: block; font-size: 22px; font-weight: 700; }
+  .chiffre span { font-size: 12px; color: #B8C7DA; }
+  .legende { position: absolute; right: 22px; bottom: 18px; z-index: 2; display: flex; gap: 14px; font-size: 12.5px; color: #C9D6E8;
+             background: rgba(11, 37, 69, 0.6); padding: 7px 12px; border-radius: 10px; }
+  .legende i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  .maplibregl-ctrl-attrib { display: none; }
+</style>
+</head>
+<body>
+<div id="scene">
+  <div id="map"></div>
+  <div class="texte">
+    <div class="kicker">__KICKER__</div>
+    <h1>__TITRE__</h1>
+    <div class="sous">__SOUS__</div>
+  </div>
+  <div class="chiffres">__CHIFFRES__</div>
+  <div class="legende"><span><i style="background:#5598E7"></i>Route plus ponctuelle que la moyenne</span>
+    <span><i style="background:#F39A6B"></i>Moyenne (± 2 pts)</span><span><i style="background:#E34948"></i>Plus en retard</span></div>
+</div>
+<script>
+// Une route = [lon départ, lat départ, lon arrivée, lat arrivée, vols, % retard, code départ, code arrivée, km]
+const ROUTES = __ROUTES__;
+const MOY = __MOY__;
+const CALME = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const PERIODE = 900;
+
+const couleur = r => {
+  const e = r - MOY, x = Math.abs(e) < 2 ? 0 : Math.sign(e) * Math.min((Math.abs(e) - 2) / 6, 1);
+  const bleu = [85, 152, 231], clair = [243, 154, 107], rouge = [227, 73, 72];
+  const [a, b, k] = x < 0 ? [clair, bleu, -x] : [clair, rouge, x];
+  return a.map((c, i) => Math.round(c + (b[i] - c) * k));
+};
+const nMax = Math.max(...ROUTES.map(r => r[4]));
+
+// Chaque route devient une trajectoire 3D (arc), parcourue par deux avions décalés dans le temps
+const traj = ROUTES.map((r, i) => {
+  const haut = 25000 + 70 * r[8], path = [], t = [];
+  const duree = 120 + 0.09 * r[8];
+  for (let k = 0; k <= 30; k++) {
+    const p = k / 30;
+    path.push([r[0] + p * (r[2] - r[0]), r[1] + p * (r[3] - r[1]), haut * Math.sin(Math.PI * p)]);
+    t.push(p * duree);
+  }
+  return { r, path, t, duree, couleur: couleur(r[5]), largeur: 0.6 + 2.2 * Math.sqrt(r[4] / nMax), depart: (i * 137.5) % PERIODE };
+});
+const vols = [];
+traj.forEach(v => [0, PERIODE / 2].forEach(d => {
+  const s = (v.depart + d) % PERIODE;
+  [s, s - PERIODE].forEach(o => vols.push({ ...v, ts: v.t.map(x => x + o) }));
+}));
+
+const map = new maplibregl.Map({
+  container: "map", style: "https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json",
+  center: [-89.5, 37.6], zoom: 3.3, pitch: 50, bearing: -14, interactive: true, attributionControl: false
+});
+const overlay = new deck.MapboxOverlay({ interleaved: false, layers: [], getTooltip: ({ object }) => object && object.r ? {
+  html: `<b>${object.r[6]} → ${object.r[7]}</b><br>${object.r[5].toFixed(1).replace(".", ",")} % de retard<br>${object.r[4].toLocaleString("fr-FR")} vols en 2015`,
+  style: { background: "white", color: "#13253D", borderRadius: "10px", fontFamily: "DM Sans, sans-serif", fontSize: "13px" } } : null });
+map.addControl(overlay);
+
+let t = 0, last = performance.now();
+function couches() {
+  return [
+    new deck.PathLayer({ id: "routes", data: traj, getPath: v => v.path, getColor: v => [...v.couleur, 70],
+                         getWidth: v => v.largeur, widthUnits: "pixels", pickable: true, autoHighlight: true,
+                         highlightColor: [255, 255, 255, 160] }),
+    new deck.TripsLayer({ id: "avions", data: vols, getPath: v => v.path, getTimestamps: v => v.ts,
+                          getColor: v => v.couleur, widthMinPixels: 2.4, trailLength: 55, fadeTrail: true,
+                          capRounded: true, jointRounded: true, currentTime: t })
+  ];
+}
+function tick(now) {
+  const dt = Math.min((now - last) / 1000, 0.1); last = now;
+  if (!CALME) {
+    t = (t + dt * 60) % PERIODE;
+    map.setBearing(-14 + 9 * Math.sin(now / 9000));
+  }
+  overlay.setProps({ layers: couches() });
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
