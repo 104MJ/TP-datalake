@@ -4,6 +4,9 @@ from dataclasses import dataclass
 
 import pandas as pd
 import streamlit as st
+from py4j.protocol import Py4JNetworkError
+from pyspark import SparkContext
+from pyspark.errors import AnalysisException
 from pyspark.sql import SparkSession
 
 from sections.theme import MOIS
@@ -18,18 +21,32 @@ def _spark():
             .config("spark.driver.memory", "1g").config("spark.ui.enabled", "false").getOrCreate())
 
 
+def _oublier_spark():
+    """JVM de Spark arrêtée (souvent faute de mémoire) : on jette la session en cache pour en lancer une neuve."""
+    _spark.clear()
+    SparkContext._gateway = SparkContext._jvm = SparkContext._active_spark_context = None
+    SparkSession._instantiatedSession = SparkSession._activeSession = None
+
+
 @st.cache_data(ttl=600, show_spinner="Lecture de la couche Gold…")
 def _lire(nom: str) -> pd.DataFrame:
-    return _spark().read.format("delta").load(f"/lakehouse/gold/{nom}").toPandas()
+    try:
+        return _spark().read.format("delta").load(f"/lakehouse/gold/{nom}").toPandas()
+    except (ConnectionError, Py4JNetworkError):
+        _oublier_spark()
+        return _spark().read.format("delta").load(f"/lakehouse/gold/{nom}").toPandas()
 
 
 def gold(nom: str):
     """Table /lakehouse/gold/<nom> en pandas, ou None si elle n'existe pas encore."""
     try:
         return _lire(nom)
+    except AnalysisException:
+        st.info(f"Table `{nom}` absente : exécutez le notebook qui la crée.")
     except Exception as exc:
-        st.info(f"Table `{nom}` absente : exécutez le notebook qui la crée ({type(exc).__name__}).")
-        return None
+        st.error(f"Lecture de `{nom}` impossible ({type(exc).__name__}) : vérifiez que HDFS tourne, "
+                 "puis relancez le dashboard (`docker compose restart streamlit`).")
+    return None
 
 
 def risque():

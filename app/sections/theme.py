@@ -164,6 +164,8 @@ CSS = f"""
 [data-testid="stAppDeployButton"], [data-testid="stMainMenu"] {{ display: none; }}
 .st-key-mode {{ position: fixed; top: 0.85rem; right: 1.4rem; z-index: 1000001; width: auto !important; background: transparent !important; box-shadow: none !important; animation: none !important; transform: none !important; }}
 .st-key-mode label p, .st-key-mode [data-testid="stWidgetLabel"] p {{ color: #DCE5F2 !important; font-weight: 600; }}
+.st-key-mode label > div:first-of-type {{ background: rgba(255, 255, 255, 0.3) !important; }}
+.st-key-mode label:has(input:checked) > div:first-of-type {{ background: var(--orange) !important; }}
 
 /* Bandeau de navigation */
 header[data-testid="stHeader"] {{ background: var(--navy); }}
