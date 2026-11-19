@@ -1,0 +1,12 @@
+[theme]
+base = "light"
+primaryColor = "#EB6834"
+backgroundColor = "#F2F5F9"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#13253D"
+baseRadius = "0.75rem"
+borderColor = "#E1E6EE"
+font = "DM Sans:https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap, sans-serif"
+
+[client]
+toolbarMode = "viewer"

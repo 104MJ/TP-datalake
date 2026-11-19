@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="236" height="40" viewBox="0 0 236 40">
+  <g transform="translate(4 6) rotate(45 14 14)">
+    <path fill="#EB6834" d="M14 0c1.4 0 2.3 1.6 2.3 3.4V10l10 6v3l-10-3v6.4l3.4 2.6V27l-5.7-1.6L8.3 27v-2.6l3.4-2.6V16l-10 3v-3l10-6V3.4C11.7 1.6 12.6 0 14 0z"/>
+  </g>
+  <text x="44" y="26" font-family="DM Sans, Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" textLength="184" lengthAdjust="spacingAndGlyphs"><tspan fill="#FFFFFF">Retards aériens</tspan><tspan fill="#9FB3CC" font-weight="500"> 2015</tspan></text>
+</svg>
