@@ -1,7 +1,7 @@
 """Onglet « Le ciel en 3D » : avions 3D d'une journée réelle et carte 3D du réseau de l'année.
 
 Tables Gold lues : flight_replay (vols des journées remarquables, horaires en heure de l'Est)
-et route_flows (routes de l'année). Toutes deux sont créées par notebooks/travail/V_vitrine_3D.ipynb.
+et route_flows (routes de l'année). Toutes deux sont créées par le notebook J3 (§5).
 
 La scène des avions est une page HTML autonome (ciel_3d_avions.html : deck.gl + MapLibre, chargés depuis
 un CDN) dans laquelle on injecte les vols de la journée. Le navigateur doit donc avoir accès à Internet.
