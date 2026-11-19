@@ -195,6 +195,8 @@ button[aria-checked="true"] p {{ color: #FFFFFF !important; }}
 [class*="st-key-barre"] {{ background: var(--navy) !important; border-radius: 14px; padding: 0.7rem 1rem 0.8rem !important; border: none !important; }}
 [class*="st-key-barre"] label p, [class*="st-key-barre"] [data-testid="stSliderTickBarMin"], [class*="st-key-barre"] [data-testid="stSliderTickBarMax"] {{ color: #DCE5F2 !important; font-weight: 600; }}
 [class*="st-key-barre"] button p, [class*="st-key-barre"] button [data-testid="stIconMaterial"] {{ color: {INK} !important; }}
+[class*="st-key-barre"] label p strong {{ color: #F5A27A; font-weight: 700; }}
+[class*="st-key-barre"] [data-testid="stTooltipIcon"] svg {{ color: #8FA3BD; stroke: #8FA3BD; }}
 [class*="st-key-barre"] [data-testid="stSliderThumbValue"] {{ display: none !important; }}
 [class*="st-key-barre"] [data-testid="stSliderThumbValue"] {{ color: #FFFFFF !important; font-weight: 700; }}
 [class*="st-key-barre"] [data-testid="stSliderTickBar"] {{ color: #8FA3BD !important; }}

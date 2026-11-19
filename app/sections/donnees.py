@@ -92,12 +92,20 @@ class Filtres:
     def actif(self):
         return bool(self.apt or self.cie or self.mois != (1, 12) or self.heures != (0, 23))
 
+    def periode(self) -> str:
+        a, b = self.mois
+        return "toute l'année" if (a, b) == (1, 12) else MOIS[a - 1] if a == b else f"{MOIS[a - 1]} → {MOIS[b - 1]}"
+
+    def creneau(self) -> str:
+        a, b = self.heures
+        return "toute la journée" if (a, b) == (0, 23) else f"{a} h" if a == b else f"{a} h → {b} h"
+
     def libelle(self, noms_cie: dict) -> str:
         parts = [self.apt or "Tous les aéroports", noms_cie.get(self.cie, "toutes compagnies")]
         if self.mois != (1, 12):
-            parts.append(MOIS[self.mois[0] - 1] if self.mois[0] == self.mois[1] else f"{MOIS[self.mois[0] - 1]} – {MOIS[self.mois[1] - 1]}")
+            parts.append(self.periode())
         if self.heures != (0, 23):
-            parts.append(f"{self.heures[0]} h" if self.heures[0] == self.heures[1] else f"{self.heures[0]} h – {self.heures[1]} h")
+            parts.append(self.creneau())
         return " · ".join(parts)
 
 
@@ -125,10 +133,13 @@ def barre_filtres(df: pd.DataFrame) -> Filtres:
         c[1].selectbox("Compagnie", choix_cie, index=choix_cie.index(s.f_cie) if s.f_cie in choix_cie else 0,
                        key=f"w_cie_{v}", on_change=_copier, args=("f_cie", f"w_cie_{v}"),
                        format_func=lambda a: "Toutes les compagnies" if a == "Toutes" else cies[a])
-        c[2].select_slider("Mois", options=list(range(1, 13)), value=tuple(s.f_mois), key=f"w_mois_{v}",
-                           on_change=_copier, args=("f_mois", f"w_mois_{v}"), format_func=lambda m: MOIS[m - 1])
-        c[3].select_slider("Heure de départ", options=list(range(24)), value=tuple(s.f_heures), key=f"w_heures_{v}",
-                           on_change=_copier, args=("f_heures", f"w_heures_{v}"), format_func=lambda h: f"{h} h")
+        # La valeur choisie s'affiche dans le libellé (la clé seule identifie le widget)
+        c[2].select_slider(f"Mois · **{f.periode()}**", options=list(range(1, 13)), value=tuple(s.f_mois),
+                           key=f"w_mois_{v}", on_change=_copier, args=("f_mois", f"w_mois_{v}"),
+                           format_func=lambda m: MOIS[m - 1], help="Glissez les deux avions : premier et dernier mois.")
+        c[3].select_slider(f"Heure de départ · **{f.creneau()}**", options=list(range(24)), value=tuple(s.f_heures),
+                           key=f"w_heures_{v}", on_change=_copier, args=("f_heures", f"w_heures_{v}"),
+                           format_func=lambda h: f"{h} h", help="Glissez les deux avions : heure de départ la plus tôt et la plus tard.")
         c[4].button("", icon=":material/restart_alt:", on_click=_reinitialiser, help="Effacer les filtres", width="stretch")
     return f
 
