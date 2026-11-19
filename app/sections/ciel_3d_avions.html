@@ -9,9 +9,9 @@
 <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/deck.gl@9.0.38/dist.min.js"></script>
 <style>
-  :root { --ink: #264653; --muted: #6b7785; --teal: #2A9D8F; --sand: #E9C46A; --coral: #E76F51; --line: #ECE5DA; }
+  :root { --ink: #13253D; --muted: #8592A3; --teal: #5598E7; --sand: #F39A6B; --coral: #E34948; --orange: #EB6834; --line: #E1E6EE; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: #F7F4EF; font-family: 'DM Sans', Arial, sans-serif; color: var(--ink); }
+  html, body { margin: 0; height: 100%; background: #F2F5F9; font-family: 'DM Sans', Arial, sans-serif; color: var(--ink); }
   /* Le dégradé fait office de ciel au-delà de l'horizon quand la carte est inclinée */
   #scene { position: absolute; inset: 0; border-radius: 20px; overflow: hidden;
            background: linear-gradient(180deg, #A9C7D3 0%, #DCE8EC 35%, #EEF3F4 100%); }
@@ -25,7 +25,7 @@
   #clock .row { display: flex; align-items: baseline; gap: 10px; font-size: 14px; margin-top: 6px; }
   #clock .row b { font-family: 'Poppins', sans-serif; font-size: 18px; min-width: 44px; }
   #clock .bar { height: 6px; border-radius: 99px; background: #EFE9DF; margin-top: 12px; overflow: hidden; }
-  #clock .bar span { display: block; height: 100%; width: 0; background: var(--coral); border-radius: 99px; transition: width .3s; }
+  #clock .bar span { display: block; height: 100%; width: 0; background: var(--orange); border-radius: 99px; transition: width .3s; }
   #clock .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
   #styles { top: 18px; right: 18px; padding: 5px; display: flex; gap: 4px; }
@@ -34,11 +34,11 @@
   .seg.on { background: var(--ink); color: #fff; }
 
   #controls { left: 18px; right: 18px; bottom: 18px; padding: 10px 16px 10px 10px; display: flex; align-items: center; gap: 14px; }
-  #play { width: 46px; height: 46px; flex: none; border: 0; border-radius: 50%; background: var(--coral); cursor: pointer;
-          display: grid; place-items: center; box-shadow: 0 4px 12px rgba(231, 111, 81, 0.35); }
+  #play { width: 46px; height: 46px; flex: none; border: 0; border-radius: 50%; background: var(--orange); cursor: pointer;
+          display: grid; place-items: center; box-shadow: 0 4px 12px rgba(235, 104, 52, 0.35); }
   #play svg { width: 18px; height: 18px; fill: #fff; }
   .hours { display: flex; flex-direction: column; flex: 1; gap: 2px; }
-  #slider { width: 100%; accent-color: var(--teal); cursor: pointer; }
+  #slider { width: 100%; accent-color: var(--orange); cursor: pointer; }
   .ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); padding: 0 2px; }
   .speed { display: flex; background: #F2EEE7; border-radius: 12px; padding: 3px; flex: none; }
   .speed .seg { padding: 6px 10px; font-size: 12px; }
@@ -57,7 +57,8 @@
     <div class="time" id="time">--h--</div>
     <div class="tz">Heure de l'Est</div>
     <div class="row"><b id="n-air">0</b><span>avions en l'air</span></div>
-    <div class="row"><b id="n-late" style="color: var(--coral)">0</b><span>arriveront en retard</span></div>
+    <div class="row"><b id="n-late" style="color: var(--orange)">0</b><span>arriveront en retard</span></div>
+    <div class="hint" id="scope"></div>
     <div class="bar"><span id="late-bar"></span></div>
     <div class="hint" id="landed">Aucun vol posé pour l'instant</div>
   </div>
@@ -97,7 +98,11 @@ let t = __T0__, playing = __AUTOPLAY__, speed = 1;
 const MINUTES_PER_SECOND = 14;
 const SHOW_LABELS = 12;
 
-const COLORS = [[42, 157, 143], [233, 196, 106], [231, 111, 81]];
+const COLORS = [[85, 152, 231], [243, 154, 107], [227, 73, 72]];
+const RAMPE = [[253, 233, 220], [243, 154, 107], [235, 104, 52], [140, 53, 18]];
+const STEP = __STEP__, FOCUS = __FOCUS__;
+const VISIBLE = FOCUS ? FLIGHTS.filter(f => f[10] === FOCUS || f[11] === FOCUS) : FLIGHTS.filter((f, i) => i % STEP === 0);
+const SCOPE = FOCUS ? VISIBLE : FLIGHTS;
 const MODEL = "https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/scenegraph-layer/airplane.glb";
 const STYLES = {
   plan: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
@@ -114,7 +119,7 @@ const ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 4h4.5v16H6zM13.5 4H18v1
 // Trajectoire : interpolation sur l'arc, altitude exagérée pour être lisible (les longs vols montent plus haut)
 const peak = f => 45000 + 190000 * Math.min(f[7] / 2500, 1.2);
 const position = (f, p) => [f[0] + p * (f[2] - f[0]), f[1] + p * (f[3] - f[1]), peak(f) * Math.sin(Math.PI * p)];
-FLIGHTS.forEach(f => {
+VISIBLE.forEach(f => {
   const dx = (f[2] - f[0]) * Math.cos((f[1] + f[3]) / 2 * Math.PI / 180), dy = f[3] - f[1];
   f.heading = Math.atan2(dx, dy) * 180 / Math.PI;                      // cap, en degrés depuis le nord
   f.groundM = Math.max(f[7] * 1609, 1);                                 // distance au sol en mètres
@@ -129,35 +134,36 @@ const pitch = (f, p) => Math.atan(peak(f) * Math.PI * Math.cos(Math.PI * p) / f.
 const progress = f => (t - f[4]) / (f[5] - f[4]);
 
 const rateColor = (r, a) => {
-  const x = Math.min(Math.max((r * 100 - 10) / 20, 0), 1) * 2, i = Math.min(Math.floor(x), 1), k = x - i;
-  return COLORS[i].map((c, j) => Math.round(c * (1 - k) + COLORS[i + 1][j] * k)).concat(a);
+  const x = Math.min(Math.max((r * 100 - 8) / 30, 0), 1) * 3, i = Math.min(Math.floor(x), 2), k = x - i;
+  return RAMPE[i].map((c, j) => Math.round(c * (1 - k) + RAMPE[i + 1][j] * k)).concat(a);
 };
 const hhmm = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}h${String(m % 60).padStart(2, "0")}`; };
+const MAXDEP = Math.max(...AIRPORTS.map(a => a[4]), 1);
 const labels = [...AIRPORTS].sort((a, b) => b[4] - a[4]).slice(0, SHOW_LABELS);
 
 function layers() {
-  const air = FLIGHTS.filter(f => t >= f[4] && t <= f[5]);
+  const air = VISIBLE.filter(f => t >= f[4] && t <= f[5]);
   return [
     new deck.ScatterplotLayer({
       id: "airports", data: AIRPORTS, getPosition: d => [d[0], d[1]],
-      getRadius: d => 9000 + 5200 * Math.sqrt(d[4]), radiusMinPixels: 3, radiusMaxPixels: 13,
+      getRadius: d => 5000 + 42000 * Math.sqrt(d[4] / MAXDEP), radiusMinPixels: 2, radiusMaxPixels: 11,
       getFillColor: d => rateColor(d[5], 210), stroked: true, getLineColor: [255, 255, 255, 230], lineWidthMinPixels: 1.2,
       pickable: true
     }),
     new deck.TextLayer({
       id: "labels", data: labels, getPosition: d => [d[0], d[1]], getText: d => d[2], getSize: 12,
-      getColor: [38, 70, 83], fontFamily: "DM Sans, Arial", fontWeight: 700, getPixelOffset: [0, -16],
+      getColor: [19, 37, 61], fontFamily: "DM Sans, Arial", fontWeight: 700, getPixelOffset: [0, -16],
       background: true, getBackgroundColor: [255, 255, 255, 225], backgroundPadding: [5, 2, 5, 2]
     }),
     new deck.TripsLayer({
-      id: "trails", data: FLIGHTS, getPath: f => f.path, getTimestamps: f => f.times, getColor: f => COLORS[f[6]],
-      currentTime: t, trailLength: 40, fadeTrail: true, widthMinPixels: 3, capRounded: true, jointRounded: true, opacity: 0.9
+      id: "trails", data: VISIBLE, getPath: f => f.path, getTimestamps: f => f.times, getColor: f => COLORS[f[6]],
+      currentTime: t, trailLength: 40, fadeTrail: true, widthMinPixels: 2, capRounded: true, jointRounded: true, opacity: 0.9
     }),
     new deck.ScenegraphLayer({
       id: "planes", data: air, scenegraph: MODEL, _lighting: "pbr", pickable: true,
       getPosition: f => position(f, progress(f)),
       getOrientation: f => [pitch(f, progress(f)), 180 - f.heading, 90],
-      getColor: f => COLORS[f[6]], sizeScale: __SIZE__, sizeMinPixels: 0.15, sizeMaxPixels: 1.3,
+      getColor: f => COLORS[f[6]], sizeScale: __SIZE__, sizeMinPixels: 0.1, sizeMaxPixels: 0.9,
       updateTriggers: { getPosition: t, getOrientation: t }
     })
   ];
@@ -208,7 +214,7 @@ setPlaying(playing);
 function draw() {
   overlay.setProps({ layers: layers() });
   let nAir = 0, nLate = 0, landed = 0, landedLate = 0;
-  for (const f of FLIGHTS) {
+  for (const f of SCOPE) {
     if (t >= f[4] && t <= f[5]) { nAir++; if (f[6] > 0) nLate++; }
     else if (t > f[5]) { landed++; if (f[6] > 0) landedLate++; }
   }
@@ -220,6 +226,8 @@ function draw() {
     ? `Depuis le matin, ${Math.round(100 * landedLate / landed)} % des vols se sont posés en retard`
     : "Aucun vol posé pour l'instant";
   slider.value = t;
+  document.getElementById("scope").textContent = FOCUS ? `Vols au départ ou à l'arrivée de ${FOCUS}`
+    : (STEP > 1 ? `1 avion affiché sur ${STEP} · compteurs sur tous les vols` : "Tous les vols affichés");
 }
 
 let last = performance.now();
