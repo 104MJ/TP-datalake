@@ -1,4 +1,4 @@
-"""Onglet « Conclusions & tests » — Personne A (tables Gold : stats_tests, + synthèse de toutes les autres)."""
+"""Onglet « Conclusions & tests » : Personne A (tables Gold : stats_tests, + synthèse de toutes les autres)."""
 
 import streamlit as st
 

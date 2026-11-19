@@ -1,4 +1,4 @@
-"""Onglet « Compagnies » — Personne A (tables Gold : airline_ranking)."""
+"""Onglet « Compagnies » : Personne A (tables Gold : airline_ranking)."""
 
 import plotly.express as px  # noqa: F401
 import streamlit as st

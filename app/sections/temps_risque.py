@@ -1,4 +1,4 @@
-"""Onglet « Saisonnalité & risque de retard » — Personne B (tables Gold : monthly_trend, delay_risk)."""
+"""Onglet « Saisonnalité & risque de retard » : Personne B (tables Gold : monthly_trend, delay_risk)."""
 
 import plotly.express as px  # noqa: F401
 import streamlit as st

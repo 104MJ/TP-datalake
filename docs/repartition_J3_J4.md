@@ -4,7 +4,7 @@ J2 est terminé (EDA + ACP des aéroports). On découpe J3 et J4 en **3 thèmes 
 
 On suit la structure de **l'exemple du prof** (`notebooks/example/exo-planette/`, à parcourir : notebooks `03` pour J3, `04` pour J4, `05` pour les conclusions, et son `dashboard.py`).
 
-| | A — Compagnies | B — Saisonnalité & risque | C — Aéroports |
+| | A : Compagnies | B : Saisonnalité & risque | C : Aéroports |
 |---|---|---|---|
 | Notebook de travail | `notebooks/travail/A_compagnies.ipynb` | `notebooks/travail/B_temps_risque.ipynb` | `notebooks/travail/C_aeroports.ipynb` |
 | J3 | §1 asymétrie (Spark SQL) + **corrélations Pearson vs Spearman** + `airline_ranking` (`DENSE_RANK`, Pareto) | `monthly_trend` (`LAG`, moyenne glissante) + `delay_risk` (table du simulateur) | `airport_profile` (`ROW_NUMBER ... PARTITION BY`) + `OPTIMIZE` |
@@ -12,9 +12,9 @@ On suit la structure de **l'exemple du prof** (`notebooks/example/exo-planette/`
 | Dashboard | `app/sections/compagnies.py` + `app/sections/conclusions.py` | `app/sections/temps_risque.py` (simulateur voyageur) | `app/sections/aeroports.py` |
 | En plus | Assemblage final de `J3_...ipynb` et `J4_...ipynb` + synthèse finale | | |
 
-Chaque test écrit aussi sa ligne dans la table Gold commune `stats_tests` (voir plus bas), affichée dans l'onglet « Conclusions & tests ».
+Chaque test écrit aussi sa ligne dans la table Gold commune `stats_tests` (voir plus bas), affichée dans l'onglet « Ce qu'il faut retenir ».
 
-**Déjà fait : la vitrine 3D.** `notebooks/travail/V_vitrine_3D.ipynb` crée `flight_replay` et `route_flows`. L'onglet « ✈️ Ciel 3D » rejoue en 3D les vols de 4 journées réelles (pire journée, blizzard du 27/01, journée typique, journée la plus ponctuelle) et affiche le réseau de l'année sur une carte 3D. Pour la voir : exécuter ce notebook, puis ouvrir `http://localhost:8501`.
+**Déjà fait : la vitrine 3D.** `notebooks/travail/V_vitrine_3D.ipynb` crée `flight_replay` et `route_flows`. L'onglet « Le ciel en 3D » rejoue en 3D les vols de 4 journées réelles (pire journée, blizzard du 27/01, journée typique, journée la plus ponctuelle) et affiche le réseau de l'année sur une carte 3D. Pour la voir : exécuter ce notebook, puis ouvrir `http://localhost:8501`.
 
 Notez vos prénoms à côté des lettres dans le groupe, puis chacun ouvre son notebook : le détail (consignes, contrat des colonnes, squelettes de requêtes) y est. Les ajouts en **gras** ci-dessus, qui viennent de l'exemple du prof, sont détaillés plus bas, dans « Ce que l'exemple du prof ajoute ».
 
@@ -70,15 +70,15 @@ def save_test(theme, test, h0, statistique, p_value, taille_effet, conclusion):
 
 Avec ~280 000 vols, toutes les p-values seront minuscules. Comme le prof, donnez toujours une **taille d'effet** (ε² pour Kruskal, r = Z/√n pour Mann-Whitney, V de Cramér pour le χ², ρ pour Spearman) et dites si l'écart compte en pratique.
 
-**A — Compagnies**
+**A : Compagnies**
 - J3 : matrice de corrélation **Pearson vs Spearman** sur `arrival_delay, departure_delay, taxi_out, distance, air_time` (échantillon via `.sample(..., seed=42)` puis `.toPandas()`) : deux heatmaps côte à côte, et une phrase sur les écarts (Pearson est sensible aux retards extrêmes, Spearman ne l'est pas).
 - J4 : **Mann-Whitney U** sur `arrival_delay` entre compagnies low-cost (`NK`, `F9`, `WN`, `B6`, `VX`) et traditionnelles (les autres).
 - Fin de J4 : **synthèse finale** façon notebook `05` du prof (5 à 6 phrases + tableau des facteurs), reprise dans `app/sections/conclusions.py`.
 
-**B — Saisonnalité & risque**
+**B : Saisonnalité & risque**
 - J4 : **drift (PSI)** de la distribution de `arrival_delay` de chaque mois par rapport à l'année entière. Prenez 10 classes définies par les déciles de l'année ; PSI = Σ (p_mois − p_annee) × ln(p_mois / p_annee). Interprétation : les mois de forte dérive sont-ils ceux des tempêtes (janvier, février) ? → table `drift_audit`.
 
-**C — Aéroports**
+**C : Aéroports**
 - J4 : **Spearman** entre `roulage_median` et `taux_retard` sur les aéroports (ρ = 0,38 dans l'EDA J2 : à confirmer avec la p-value).
 - K-Means : comme le prof, choisir k avec **silhouette et Davies-Bouldin** (k = 2 à 8, un graphique avec les deux courbes), puis montrer les clusters sur le **plan de l'ACP** (CP1 × CP2).
 

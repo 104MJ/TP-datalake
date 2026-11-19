@@ -1,4 +1,4 @@
-"""Onglet « Aéroports » — Personne C (tables Gold : airport_profile, airport_segments)."""
+"""Onglet « Aéroports » : Personne C (tables Gold : airport_profile, airport_segments)."""
 
 import plotly.express as px  # noqa: F401
 import streamlit as st

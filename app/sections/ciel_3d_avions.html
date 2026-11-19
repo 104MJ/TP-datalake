@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/deck.gl@9.0.38/dist.min.js"></script>
+<style>
+  :root { --ink: #264653; --muted: #6b7785; --teal: #2A9D8F; --sand: #E9C46A; --coral: #E76F51; --line: #ECE5DA; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #F7F4EF; font-family: 'DM Sans', Arial, sans-serif; color: var(--ink); }
+  /* Le dégradé fait office de ciel au-delà de l'horizon quand la carte est inclinée */
+  #scene { position: absolute; inset: 0; border-radius: 20px; overflow: hidden;
+           background: linear-gradient(180deg, #A9C7D3 0%, #DCE8EC 35%, #EEF3F4 100%); }
+  #map { position: absolute; inset: 0; }
+  .card { position: absolute; z-index: 2; background: rgba(255, 255, 255, 0.93); backdrop-filter: blur(10px);
+          border-radius: 18px; box-shadow: 0 10px 30px rgba(20, 40, 50, 0.18); }
+
+  #clock { top: 18px; left: 18px; padding: 16px 20px 14px; width: 270px; }
+  #clock .time { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 44px; line-height: 1; letter-spacing: -0.02em; }
+  #clock .tz { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; margin: 6px 0 12px; }
+  #clock .row { display: flex; align-items: baseline; gap: 10px; font-size: 14px; margin-top: 6px; }
+  #clock .row b { font-family: 'Poppins', sans-serif; font-size: 18px; min-width: 44px; }
+  #clock .bar { height: 6px; border-radius: 99px; background: #EFE9DF; margin-top: 12px; overflow: hidden; }
+  #clock .bar span { display: block; height: 100%; width: 0; background: var(--coral); border-radius: 99px; transition: width .3s; }
+  #clock .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  #styles { top: 18px; right: 18px; padding: 5px; display: flex; gap: 4px; }
+  .seg { border: 0; background: transparent; padding: 8px 15px; border-radius: 13px; cursor: pointer;
+         font: 600 13px 'DM Sans', sans-serif; color: var(--ink); }
+  .seg.on { background: var(--ink); color: #fff; }
+
+  #controls { left: 18px; right: 18px; bottom: 18px; padding: 10px 16px 10px 10px; display: flex; align-items: center; gap: 14px; }
+  #play { width: 46px; height: 46px; flex: none; border: 0; border-radius: 50%; background: var(--coral); cursor: pointer;
+          display: grid; place-items: center; box-shadow: 0 4px 12px rgba(231, 111, 81, 0.35); }
+  #play svg { width: 18px; height: 18px; fill: #fff; }
+  .hours { display: flex; flex-direction: column; flex: 1; gap: 2px; }
+  #slider { width: 100%; accent-color: var(--teal); cursor: pointer; }
+  .ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); padding: 0 2px; }
+  .speed { display: flex; background: #F2EEE7; border-radius: 12px; padding: 3px; flex: none; }
+  .speed .seg { padding: 6px 10px; font-size: 12px; }
+  .legend { display: flex; gap: 14px; font-size: 13px; flex: none; }
+  .legend span { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .legend i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .maplibregl-ctrl-attrib { font-size: 10px; }
+  @media (max-width: 760px) { .legend { display: none; } #clock { width: 220px; } #clock .time { font-size: 34px; } }
+</style>
+</head>
+<body>
+<div id="scene">
+  <div id="map"></div>
+
+  <div id="clock" class="card">
+    <div class="time" id="time">--h--</div>
+    <div class="tz">Heure de l'Est</div>
+    <div class="row"><b id="n-air">0</b><span>avions en l'air</span></div>
+    <div class="row"><b id="n-late" style="color: var(--coral)">0</b><span>arriveront en retard</span></div>
+    <div class="bar"><span id="late-bar"></span></div>
+    <div class="hint" id="landed">Aucun vol posé pour l'instant</div>
+  </div>
+
+  <div id="styles" class="card">
+    <button class="seg" data-style="sat">Satellite</button>
+    <button class="seg" data-style="plan">Plan</button>
+  </div>
+
+  <div id="controls" class="card">
+    <button id="play" aria-label="Lecture"></button>
+    <div class="hours">
+      <input id="slider" type="range" step="1">
+      <div class="ticks" id="ticks"></div>
+    </div>
+    <div class="speed" id="speed">
+      <button class="seg" data-speed="0.5">Lent</button>
+      <button class="seg on" data-speed="1">Normal</button>
+      <button class="seg" data-speed="2.5">Rapide</button>
+    </div>
+    <div class="legend">
+      <span><i style="background: var(--teal)"></i>À l'heure</span>
+      <span><i style="background: var(--sand)"></i>15 à 60 min</span>
+      <span><i style="background: var(--coral)"></i>Plus d'1 h</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// Données injectées par Python : un vol = [lon départ, lat départ, lon arrivée, lat arrivée, décollage (min),
+// atterrissage (min), classe de retard 0/1/2, distance (miles), compagnie, numéro, aéroport départ, aéroport arrivée, retard arrivée]
+const FLIGHTS = __FLIGHTS__;
+// Un aéroport = [lon, lat, code, ville, départs du jour, part de vols en retard 0..1]
+const AIRPORTS = __AIRPORTS__;
+const START = __START__, END = __END__;
+let t = __T0__, playing = __AUTOPLAY__, speed = 1;
+const MINUTES_PER_SECOND = 14;
+const SHOW_LABELS = 12;
+
+const COLORS = [[42, 157, 143], [233, 196, 106], [231, 111, 81]];
+const MODEL = "https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/scenegraph-layer/airplane.glb";
+const STYLES = {
+  plan: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+  sat: {
+    version: 8,
+    sources: { sat: { type: "raster", tileSize: 256, attribution: "Imagerie © Esri",
+      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"] } },
+    layers: [{ id: "sat", type: "raster", source: "sat", paint: { "raster-saturation": -0.15, "raster-brightness-max": 0.9 } }]
+  }
+};
+const ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg>';
+
+// Trajectoire : interpolation sur l'arc, altitude exagérée pour être lisible (les longs vols montent plus haut)
+const peak = f => 45000 + 190000 * Math.min(f[7] / 2500, 1.2);
+const position = (f, p) => [f[0] + p * (f[2] - f[0]), f[1] + p * (f[3] - f[1]), peak(f) * Math.sin(Math.PI * p)];
+FLIGHTS.forEach(f => {
+  const dx = (f[2] - f[0]) * Math.cos((f[1] + f[3]) / 2 * Math.PI / 180), dy = f[3] - f[1];
+  f.heading = Math.atan2(dx, dy) * 180 / Math.PI;                      // cap, en degrés depuis le nord
+  f.groundM = Math.max(f[7] * 1609, 1);                                 // distance au sol en mètres
+  f.path = []; f.times = [];
+  for (let i = 0; i <= 32; i++) {
+    const p = i / 32;
+    f.path.push(position(f, p));
+    f.times.push(f[4] + p * (f[5] - f[4]));
+  }
+});
+const pitch = (f, p) => Math.atan(peak(f) * Math.PI * Math.cos(Math.PI * p) / f.groundM) * 180 / Math.PI;
+const progress = f => (t - f[4]) / (f[5] - f[4]);
+
+const rateColor = (r, a) => {
+  const x = Math.min(Math.max((r * 100 - 10) / 20, 0), 1) * 2, i = Math.min(Math.floor(x), 1), k = x - i;
+  return COLORS[i].map((c, j) => Math.round(c * (1 - k) + COLORS[i + 1][j] * k)).concat(a);
+};
+const hhmm = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}h${String(m % 60).padStart(2, "0")}`; };
+const labels = [...AIRPORTS].sort((a, b) => b[4] - a[4]).slice(0, SHOW_LABELS);
+
+function layers() {
+  const air = FLIGHTS.filter(f => t >= f[4] && t <= f[5]);
+  return [
+    new deck.ScatterplotLayer({
+      id: "airports", data: AIRPORTS, getPosition: d => [d[0], d[1]],
+      getRadius: d => 9000 + 5200 * Math.sqrt(d[4]), radiusMinPixels: 3, radiusMaxPixels: 13,
+      getFillColor: d => rateColor(d[5], 210), stroked: true, getLineColor: [255, 255, 255, 230], lineWidthMinPixels: 1.2,
+      pickable: true
+    }),
+    new deck.TextLayer({
+      id: "labels", data: labels, getPosition: d => [d[0], d[1]], getText: d => d[2], getSize: 12,
+      getColor: [38, 70, 83], fontFamily: "DM Sans, Arial", fontWeight: 700, getPixelOffset: [0, -16],
+      background: true, getBackgroundColor: [255, 255, 255, 225], backgroundPadding: [5, 2, 5, 2]
+    }),
+    new deck.TripsLayer({
+      id: "trails", data: FLIGHTS, getPath: f => f.path, getTimestamps: f => f.times, getColor: f => COLORS[f[6]],
+      currentTime: t, trailLength: 40, fadeTrail: true, widthMinPixels: 3, capRounded: true, jointRounded: true, opacity: 0.9
+    }),
+    new deck.ScenegraphLayer({
+      id: "planes", data: air, scenegraph: MODEL, _lighting: "pbr", pickable: true,
+      getPosition: f => position(f, progress(f)),
+      getOrientation: f => [pitch(f, progress(f)), 180 - f.heading, 90],
+      getColor: f => COLORS[f[6]], sizeScale: __SIZE__, sizeMinPixels: 0.15, sizeMaxPixels: 1.3,
+      updateTriggers: { getPosition: t, getOrientation: t }
+    })
+  ];
+}
+
+function tooltip({ object, layer }) {
+  if (!object || !layer) return null;
+  const style = { background: "white", color: "#264653", borderRadius: "12px", padding: "8px 12px",
+                  fontFamily: "DM Sans, Arial", fontSize: "13px", boxShadow: "0 6px 18px rgba(20,40,50,.18)" };
+  if (layer.id === "planes") {
+    const d = object[12], txt = d >= 15 ? `${d} min de retard à l'arrivée` : (d > 0 ? `${d} min de retard, dans la tolérance` : "à l'heure ou en avance");
+    return { html: `<b>${object[8]} ${object[9]}</b><br>${object[10]} vers ${object[11]}<br>${txt}`, style };
+  }
+  if (layer.id === "airports") {
+    return { html: `<b>${object[2]}</b> ${object[3]}<br>${object[4]} départs ce jour-là<br>${Math.round(object[5] * 100)} % arrivés en retard`, style };
+  }
+  return null;
+}
+
+const map = new maplibregl.Map({
+  container: "map", style: STYLES.sat, center: [-95.8, 37.6], zoom: 4.0, pitch: 44, bearing: -6,
+  antialias: true, attributionControl: { compact: true }, dragRotate: true
+});
+const overlay = new deck.MapboxOverlay({ interleaved: false, layers: [], getTooltip: tooltip });
+map.addControl(overlay);
+
+function setStyle(name) {
+  map.setStyle(STYLES[name]);
+  document.querySelectorAll("#styles .seg").forEach(b => b.classList.toggle("on", b.dataset.style === name));
+}
+document.querySelectorAll("#styles .seg").forEach(b => b.onclick = () => setStyle(b.dataset.style));
+document.querySelector('#styles .seg[data-style="sat"]').classList.add("on");
+
+const slider = document.getElementById("slider");
+slider.min = START; slider.max = END; slider.value = t;
+slider.oninput = () => { t = +slider.value; draw(); };
+document.getElementById("ticks").innerHTML =
+  Array.from({ length: Math.floor((END - START) / 180) + 1 }, (_, i) => `<span>${hhmm(START + i * 180)}</span>`).join("");
+document.querySelectorAll("#speed .seg").forEach(b => b.onclick = () => {
+  speed = +b.dataset.speed;
+  document.querySelectorAll("#speed .seg").forEach(x => x.classList.toggle("on", x === b));
+});
+const playBtn = document.getElementById("play");
+const setPlaying = v => { playing = v; playBtn.innerHTML = v ? ICON_PAUSE : ICON_PLAY; playBtn.setAttribute("aria-label", v ? "Pause" : "Lecture"); };
+playBtn.onclick = () => setPlaying(!playing);
+setPlaying(playing);
+
+function draw() {
+  overlay.setProps({ layers: layers() });
+  let nAir = 0, nLate = 0, landed = 0, landedLate = 0;
+  for (const f of FLIGHTS) {
+    if (t >= f[4] && t <= f[5]) { nAir++; if (f[6] > 0) nLate++; }
+    else if (t > f[5]) { landed++; if (f[6] > 0) landedLate++; }
+  }
+  document.getElementById("time").textContent = hhmm(t);
+  document.getElementById("n-air").textContent = nAir;
+  document.getElementById("n-late").textContent = nLate;
+  document.getElementById("late-bar").style.width = nAir ? `${100 * nLate / nAir}%` : "0";
+  document.getElementById("landed").textContent = landed
+    ? `Depuis le matin, ${Math.round(100 * landedLate / landed)} % des vols se sont posés en retard`
+    : "Aucun vol posé pour l'instant";
+  slider.value = t;
+}
+
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min((now - last) / 1000, 0.1);
+  last = now;
+  if (playing) { t += dt * MINUTES_PER_SECOND * speed; if (t > END) t = START; }
+  draw();
+  requestAnimationFrame(tick);
+}
+// On n'attend pas l'événement "load" de la carte (il attend toutes les tuiles satellite) : deck.gl dessine tout de suite.
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
